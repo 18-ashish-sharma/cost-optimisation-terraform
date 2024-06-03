@@ -17,7 +17,7 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const user = process.env.GITHUB_ACTOR;
+            const user = github.context.actor;
             return user;
         env:
           GITHUB_TOKEN: ${{ secrets.SECRET }}
@@ -34,6 +34,6 @@ jobs:
         with:
           tag_name: "v${{ env.VERSION }}"
           release_name: "v${{ env.VERSION }}"
-          body: "Release created by ${{ steps.get-user.outputs.result }}"
+          body: "Release created by ${{ steps.get-user.outputs.result }} devops lead!"
           draft: false
           prerelease: false
