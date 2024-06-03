@@ -11,8 +11,11 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.SECRET }}
     steps:
+      - name: Set version number
+        id: version
+        run: echo "VERSION=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+
       - uses: rymndhng/release-on-push-action@master
         with:
           bump_version_scheme: minor
-          tag_prefix: "v"
-          release_name: "4"
+          release_name: "v${{ env.VERSION }}"
