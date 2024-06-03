@@ -17,7 +17,7 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const user = github.context.actor;
+            const user = process.env.GITHUB_ACTOR;
             return user;
         env:
           GITHUB_TOKEN: ${{ secrets.SECRET }}
