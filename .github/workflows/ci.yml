@@ -8,14 +8,32 @@ on:
 jobs:
   release-on-push:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.SECRET }}
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Get the user who triggered the workflow
+        id: get-user
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const user = github.context.actor;
+            return user;
+        env:
+          GITHUB_TOKEN: ${{ secrets.SECRET }}
+
       - name: Set version number
         id: version
         run: echo "VERSION=5.0.1" >> $GITHUB_ENV
 
-      - uses: rymndhng/release-on-push-action@master
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.SECRET }}
         with:
-          bump_version_scheme: minor
+          tag_name: "v${{ env.VERSION }}"
           release_name: "v${{ env.VERSION }}"
+          body: "Release created by ${{ steps.get-user.outputs.result }}"
+          draft: false
+          prerelease: false
