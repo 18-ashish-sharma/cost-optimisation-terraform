@@ -15,4 +15,4 @@ jobs:
         with:
           bump_version_scheme: minor
           tag_prefix: "v"
-          release_name: "Release 3"
+          release_name: "4"
