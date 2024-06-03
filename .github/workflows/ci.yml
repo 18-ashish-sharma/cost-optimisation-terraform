@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Set version number
         id: version
-        run: echo "VERSION=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+        run: echo "VERSION=5.0.1" >> $GITHUB_ENV
 
       - uses: rymndhng/release-on-push-action@master
         with:
