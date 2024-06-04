@@ -41,8 +41,6 @@ jobs:
           tag_name: "v${{ env.VERSION }}"
           release_name: "v${{ env.VERSION }}"
           body: |
-            Release created by [${{ steps.get-user.outputs.username }}](${{ steps.get-user.outputs.profile_url }}) devops lead!
-
-            ![User Avatar](${{ steps.get-user.outputs.avatar_url }})
+            Release created by ${{ steps.get-user.outputs.avatar_url }} - ${{ steps.get-user.outputs.username }}-{{ steps.get-user.outputs.profile_url }} devops lead!
           draft: false
           prerelease: false
