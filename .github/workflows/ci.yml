@@ -18,13 +18,7 @@ jobs:
         with:
           script: |
             const user = process.env.GITHUB_ACTOR;
-            const response = await fetch(`https://api.github.com/users/${user}`);
-            const data = await response.json();
-            return {
-              username: data.login,
-              avatar_url: data.avatar_url,
-              profile_url: data.html_url
-            };
+            return user;
         env:
           GITHUB_TOKEN: ${{ secrets.SECRET }}
 
@@ -40,18 +34,12 @@ jobs:
         with:
           script: |
             const tagName = `v${{ env.VERSION }}`;
-            const release = await github.repos.getReleaseByTag({
+            const releases = await github.repos.listReleases({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag: tagName,
-            }).catch(error => {
-              if (error.status === 404) {
-                return null;
-              } else {
-                throw error;
-              }
             });
-            return release ? release.data.id : null;
+            const release = releases.data.find(release => release.tag_name === tagName);
+            return release ? release.id : null;
         env:
           GITHUB_TOKEN: ${{ secrets.SECRET }}
 
