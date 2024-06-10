@@ -24,16 +24,63 @@ jobs:
 
       - name: Set version number
         id: version
-        run: echo "VERSION=5.0.2" >> $GITHUB_ENV
+        run: |
+          VERSION=$(grep 'build.version' version.properties | cut -d '=' -f 2)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Check if release exists
+        id: check_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tagName = `v${{ env.VERSION }}`;
+            const release = await github.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tagName,
+            }).catch(error => {
+              if (error.status === 404) {
+                return null;
+              } else {
+                throw error;
+              }
+            });
+            return release ? release.data.id : null;
         env:
           GITHUB_TOKEN: ${{ secrets.SECRET }}
+
+      - name: Create or Update Release
+        id: create_update_release
+        uses: actions/github-script@v6
         with:
-          tag_name: "v${{ env.VERSION }}"
-          release_name: "v${{ env.VERSION }}"
-          body: "Release created by ${{ steps.get-user.outputs.result }} devops lead!"
-          draft: false
-          prerelease: false
+          script: |
+            const tagName = `v${{ env.VERSION }}`;
+            const releaseName = `v${{ env.VERSION }}`;
+            const body = `Release created by ${{ steps.get-user.outputs.result }}`;
+
+            if (${{ steps.check_release.outputs.result }} !== null) {
+              // Update existing release
+              await github.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: ${{ steps.check_release.outputs.result }},
+                tag_name: tagName,
+                name: releaseName,
+                body: body,
+                draft: false,
+                prerelease: false,
+              });
+            } else {
+              // Create new release
+              await github.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tagName,
+                name: releaseName,
+                body: body,
+                draft: false,
+                prerelease: false,
+              });
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.SECRET }}
