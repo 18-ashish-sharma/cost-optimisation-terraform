@@ -1,4 +1,4 @@
-name: Test CI
+name: Check Time and Conditionally Run CD
 
 on:
   push:
@@ -6,75 +6,19 @@ on:
       - main
 
 jobs:
-  release-on-push:
+  check-time:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v2
+      - name: Set up time and date
+        id: date
+        run: echo "current_time=$(TZ=Asia/Kolkata date +'%H:%M')" >> $GITHUB_ENV
 
-      - name: Get the user who triggered the workflow
-        id: get-user
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const user = process.env.GITHUB_ACTOR;
-            return user;
-        env:
-          GITHUB_TOKEN: ${{ secrets.SECRET }}
-
-      - name: Set version number
-        id: version
+      - name: Check if current time is within specified ranges
+        id: time-check
         run: |
-          VERSION=$(grep 'build.version' version.properties | cut -d '=' -f 2)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Check if release exists
-        id: check_release
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const tagName = `v${{ env.VERSION }}`;
-            const releases = await github.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-            const release = releases.data.find(release => release.tag_name === tagName);
-            return release ? release.id : null;
-        env:
-          GITHUB_TOKEN: ${{ secrets.SECRET }}
-
-      - name: Create or Update Release
-        id: create_update_release
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const tagName = `v${{ env.VERSION }}`;
-            const releaseName = `v${{ env.VERSION }}`;
-            const body = `Release created by ${{ steps.get-user.outputs.result }}`;
-
-            if (${{ steps.check_release.outputs.result }} !== null) {
-              // Update existing release
-              await github.repos.updateRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: ${{ steps.check_release.outputs.result }},
-                tag_name: tagName,
-                name: releaseName,
-                body: body,
-                draft: false,
-                prerelease: false,
-              });
-            } else {
-              // Create new release
-              await github.repos.createRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag_name: tagName,
-                name: releaseName,
-                body: body,
-                draft: false,
-                prerelease: false,
-              });
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.SECRET }}
+          if [[ "$current_time" > "08:00" && "$current_time" < "13:15" ]] || [[ "$current_time" > "13:30" && "$current_time" < "18:00" ]]; then
+            echo "Time is within the allowed range. Continuing the workflow."
+          else
+            echo "Time is not within the allowed range. Exiting the workflow."
+            exit 1
+          fi
