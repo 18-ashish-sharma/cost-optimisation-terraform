@@ -21,8 +21,19 @@ jobs:
         run: |
           echo "Checking if current time (${{ env.current_time }}) is within allowed ranges..."
           if [[ "${{ env.current_time }}" > "08:00" && "${{ env.current_time }}" < "13:15" ]] || [[ "${{ env.current_time }}" > "13:30" && "${{ env.current_time }}" < "18:00" ]]; then
-            echo "Time is within the allowed range. Continuing the workflow."
-          else
-            echo "Time is not within the allowed range. Exiting the workflow."
+            echo "Time is within the disallowed range. Exiting the workflow."
             exit 1
+          else
+            echo "Time is outside the disallowed range. Continuing the workflow."
           fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: check-time
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Add your CD steps here
+      - name: Deploy
+        run: echo "Deploying..."
