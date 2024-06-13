@@ -19,6 +19,7 @@ jobs:
       - name: Check if current time is within specified ranges
         id: time-check
         run: |
+          echo "Checking if current time (${{ env.current_time }}) is within allowed ranges..."
           if [[ "${{ env.current_time }}" > "08:00" && "${{ env.current_time }}" < "13:15" ]] || [[ "${{ env.current_time }}" > "13:30" && "${{ env.current_time }}" < "18:00" ]]; then
             echo "Time is within the allowed range. Continuing the workflow."
           else
