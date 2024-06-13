@@ -32,15 +32,15 @@ jobs:
           elif [[ "${{ env.current_time }}" > "08:00" && "${{ env.current_time }}" < "13:15" ]] || [[ "${{ env.current_time }}" > "13:30" && "${{ env.current_time }}" < "18:00" ]]; then
             echo "Time is within the disallowed range. Exiting the workflow."
             echo "::set-output name=continue::false"
-            exit 0
           else
             echo "Time is outside the disallowed range. Continuing the workflow."
             echo "::set-output name=continue::true"
 
-      - name: Log exit reason
+      - name: Log exit reason and exit if necessary
         if: steps.time-check.outputs.continue == 'false'
         run: |
           if [[ "${{ env.current_day }}" -eq 6 ]] || [[ "${{ env.current_day }}" -eq 7 ]]; then
             echo "Workflow exited because today is Saturday or Sunday."
           else
             echo "Workflow exited because the current time (${{ env.current_time }}) is within the disallowed range."
+          exit 0
