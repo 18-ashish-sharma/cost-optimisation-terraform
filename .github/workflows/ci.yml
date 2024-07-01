@@ -1,11 +1,9 @@
 name: Check Time and Conditionally Run CD
 
 on:
-  workflow_call:
-    outputs:
-      continue:
-        description: 'Whether to continue the workflow'
-        value: ${{ jobs.check-time.outputs.continue }}
+  push:
+    branches:
+      - main
 
 jobs:
   check-time:
@@ -15,15 +13,19 @@ jobs:
     steps:
       - name: Set up time and date
         id: date
-        run: echo "current_time=$(TZ=Asia/Kolkata date +'%H:%M')" >> $GITHUB_ENV
+        run: |
+          echo "current_time=$(TZ=Asia/Kolkata date +'%H:%M')" >> $GITHUB_ENV
+          echo "current_day=$(TZ=Asia/Kolkata date +'%u')" >> $GITHUB_ENV
 
-      - name: Log current time
-        run: echo "Current time in IST is ${{ env.current_time }}"
+      - name: Log current time and day
+        run: |
+          echo "Current time in IST is ${{ env.current_time }}"
+          echo "Current day in IST is ${{ env.current_day }}"
 
-      - name: Check if current time is within specified ranges
+      - name: Check if current time is within specified ranges or if it's the weekend
         id: time-check
         run: |
-          echo "Checking if current time (${{ env.current_time }}) is within allowed ranges..."
+          echo "Checking if current time (${{ env.current_time }}) is within allowed ranges or if it's the weekend..."
 
           current_time=$(date -d "${{ env.current_time }}" +%s)
           six_pm=$(date -d "18:00" +%s)
@@ -31,8 +33,11 @@ jobs:
           one_fifteen_pm=$(date -d "13:15" +%s)
           one_thirty_pm=$(date -d "13:30" +%s)
 
-          if [[ $current_time -ge $six_pm ]] || [[ $current_time -le $nine_am ]] || \
-             ([[ $current_time -ge $one_fifteen_pm ]] && [[ $current_time -le $one_thirty_pm ]]); then
+          if [[ "${{ env.current_day }}" -eq 1 ]] || [[ "${{ env.current_day }}" -eq 7 ]]; then
+            echo "Today is Saturday or Sunday. Continuing the workflow."
+            echo "::set-output name=continue::true"
+          elif [[ $current_time -ge $six_pm ]] || [[ $current_time -le $nine_am ]] || \
+               ([[ $current_time -ge $one_fifteen_pm ]] && [[ $current_time -le $one_thirty_pm ]]); then
             echo "Time is within the allowed range. Continuing the workflow."
             echo "::set-output name=continue::true"
           else
