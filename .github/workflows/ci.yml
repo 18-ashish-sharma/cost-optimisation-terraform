@@ -1,9 +1,11 @@
 name: Check Time and Conditionally Run CD
 
 on:
-  push:
-    branches:
-      - main
+  workflow_call:
+    outputs:
+      continue:
+        description: 'Whether to continue the workflow'
+        value: ${{ jobs.check-time.outputs.continue }}
 
 jobs:
   check-time:
