@@ -36,7 +36,7 @@ jobs:
           if [[ "${{ env.current_day }}" -eq 6 ]] || [[ "${{ env.current_day }}" -eq 7 ]]; then
             echo "Today is Saturday or Sunday. Continuing the workflow."
             echo "::set-output name=continue::true"
-          elif [[ $current_time -ge $six_pm ]] || [[ $current_time -le $nine_am ]] || \
+          elif [[ $current_time -le $nine_am ]] || [[ $current_time -ge $six_pm ]] || \
                ([[ $current_time -ge $one_fifteen_pm ]] && [[ $current_time -le $one_thirty_pm ]]); then
             echo "Time is within the allowed range. Continuing the workflow."
             echo "::set-output name=continue::true"
@@ -45,4 +45,3 @@ jobs:
             echo "::set-output name=continue::false"
             exit 0
           fi
-          
