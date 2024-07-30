@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        
+
       - name: Check PR Target Branch
         if: github.event.pull_request.base.ref == 'main'
         run: |
@@ -18,7 +18,7 @@ jobs:
           PR_TEMPLATE=$(cat .github/PULL_REQUEST_TEMPLATE/main_pr_template.md)
           echo "Template Content:"
           echo "$PR_TEMPLATE"
-          curl -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+          curl -H "Authorization: token ${{ secrets.TOKEN }}" \
                -H "Accept: application/vnd.github.v3+json" \
                -X PATCH \
                -d "{\"body\":\"$PR_TEMPLATE\"}" \
