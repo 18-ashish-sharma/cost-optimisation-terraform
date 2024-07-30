@@ -1,0 +1,22 @@
+name: PR Template Check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+jobs:
+  check-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Target Branch
+        if: github.event.pull_request.base.ref == 'main'
+        run: |
+          echo "PR is targeting the main branch."
+          curl -H "Authorization: token ${{ secrets.SECRET }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               -X PATCH \
+               -d '{"body":"$(cat .github/PULL_REQUEST_TEMPLATE/main_pr_template.md)"}' \
+               "${{ github.event.pull_request.url }}"
+      - name: Skip Template Check for Other Branches
+        if: github.event.pull_request.base.ref != 'main'
+        run: echo "PR is not targeting the main branch. Skipping template application."
