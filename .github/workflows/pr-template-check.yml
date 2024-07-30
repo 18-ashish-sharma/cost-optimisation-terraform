@@ -13,6 +13,8 @@ jobs:
         run: |
           echo "PR is targeting the main branch."
           PR_TEMPLATE=$(cat .github/PULL_REQUEST_TEMPLATE/main_pr_template.md)
+          echo "Template Content:"
+          echo "$PR_TEMPLATE"
           curl -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
                -H "Accept: application/vnd.github.v3+json" \
                -X PATCH \
