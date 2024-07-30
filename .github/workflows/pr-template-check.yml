@@ -12,10 +12,11 @@ jobs:
         if: github.event.pull_request.base.ref == 'main'
         run: |
           echo "PR is targeting the main branch."
-          curl -H "Authorization: token ${{ secrets.TOKEN }}" \
+          PR_TEMPLATE=$(cat .github/PULL_REQUEST_TEMPLATE/main_pr_template.md)
+          curl -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
                -H "Accept: application/vnd.github.v3+json" \
                -X PATCH \
-               -d '{"body":"$(cat .github/PULL_REQUEST_TEMPLATE/main_pr_template.md)"}' \
+               -d "{\"body\":\"$PR_TEMPLATE\"}" \
                "${{ github.event.pull_request.url }}"
       - name: Skip Template Check for Other Branches
         if: github.event.pull_request.base.ref != 'main'
