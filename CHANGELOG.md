@@ -31,7 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - `modules/budget-alerts`: monthly AWS Budget with 80 % actual / 100 % forecast alerts to
   SNS + email, and optional Cost Anomaly Detection.
-- CI workflow: fmt, validate, tflint, Checkov (SARIF), ruff and pytest. Removed the old
+- `terraform test` suites for both modules (plan-only, dummy credentials).
+- CI workflow: fmt, validate, terraform test, tflint, Checkov (SARIF), ruff and pytest. Removed the old
   time-of-day workflow, `check_version.sh` and `version.properties`.
 - Lambda memory 3008 MB -> 128 MB, runtime python3.9 -> python3.12, arm64.
 

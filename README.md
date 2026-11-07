@@ -62,8 +62,8 @@ This section describes exactly what the code does.
 | ---- | --------- |
 | Trigger | Each entry in `var.schedules` creates one EventBridge rule. The rule sends `{"action": "start"}` or `{"action": "stop"}` to the Lambda. |
 | Selection, EC2 | `DescribeInstances` (paginated), filtered by tag and by state: **stop** picks `running`, **start** picks `stopped`. Instances with the `aws:autoscaling:groupName` tag are skipped. |
-| Selection, RDS | `DescribeDBInstances` and `DescribeDBClusters` (paginated), matched on `TagList`. **stop** picks `available`, **start** picks `stopped`. Aurora members are handled at cluster level (`Start/StopDBCluster`), not per instance. |
-| Action | `StartInstances`/`StopInstances` in batches of 50; `Start/StopDBInstance`; `Start/StopDBCluster`. |
+| Selection, RDS | `DescribeDBInstances` and `DescribeDBClusters` (paginated), matched on `TagList`. **stop** picks `available`, **start** picks `stopped`. Cluster members are handled at cluster level (`Start/StopDBCluster`), not per instance. Read replicas, and sources that have replicas, are skipped (AWS cannot stop them). |
+| Action | `StartInstances`/`StopInstances` in batches of 50 (if a batch fails, it is retried one instance at a time so one bad instance does not keep the other 49 running); `Start/StopDBInstance`; `Start/StopDBCluster`. |
 | Idempotency | Only resources in the opposite state are selected, so running the same action twice is a no-op. |
 | Failure | Every target is attempted. If any call fails, the function **raises** at the end, the invocation counts as an error, and the `Errors` alarm notifies the SNS topic. |
 | Dry run | `{"action": "stop", "dry_run": true}` returns what would change and changes nothing. |
@@ -183,8 +183,9 @@ ruff check . && ruff format --check .
 pytest -q                     # moto: in-memory EC2/RDS, no AWS account needed
 
 terraform fmt -check -recursive
+(cd modules/scheduler && terraform init -backend=false && terraform test)  # plan-only, no AWS calls
 tflint --init && tflint --recursive
-checkov -d . --framework terraform github_actions
+checkov -d . --framework terraform github_actions --skip-path .venv --skip-path builds
 ```
 
 CI (`.github/workflows/terraform.yml`) runs the same checks on every pull request and on pushes
@@ -202,16 +203,22 @@ Optional local hooks: `pre-commit install` (see `.pre-commit-config.yaml`).
 * **No hard-coded identifiers.** Account ID, region and partition come from data sources.
 * **State.** Encrypted S3 backend with `use_lockfile`; state, `backend.hcl` and `*.tfvars` are
   git-ignored.
-* **Static analysis.** tflint (AWS ruleset) and Checkov run in CI and upload SARIF to code
-  scanning. Each remaining Checkov skip is inline on its resource with the reason.
+* **Static analysis.** tflint (AWS ruleset) and Checkov run in CI; Checkov results are also
+  uploaded as SARIF to code scanning. Each remaining Checkov skip is inline on its resource
+  with the reason.
 
 ## Limitations
 
 * **RDS starts itself after 7 days stopped.** AWS restarts a stopped RDS instance or Aurora
   cluster after seven days. The weekday schedule stops it again that evening; a database stopped
   "for a holiday" does not stay stopped.
-* **Not every database can be stopped**: read replicas, sources that have read replicas, and
-  Aurora Serverless v1 cannot. Such calls fail, are logged, and the run raises so the alarm fires.
+* **Not every database can be stopped.** Read replicas and their sources are skipped. Others,
+  such as Aurora Serverless v1, fail the call; the failure is logged and the run raises so the
+  alarm fires.
+* **`DescribeDBClusters` also lists Neptune and DocumentDB clusters.** A tagged cluster of
+  those engines is stopped and started too.
+* **Forecast alerts need history.** AWS Budgets only forecasts once the account has a few
+  weeks of spend data; until then the `FORECASTED` threshold does not fire.
 * **Storage is still billed** (EBS, RDS storage, snapshots, Elastic IPs).
 * **Instance store** (ephemeral) data is lost when an EC2 instance stops.
 * **EBS encrypted with a customer-managed KMS key**: starting the instance can also need

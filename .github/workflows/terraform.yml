@@ -47,11 +47,12 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
-      - name: init (no backend) and validate
+      - name: init (no backend), validate, test
         working-directory: ${{ matrix.dir }}
         run: |
           terraform init -backend=false -input=false
           terraform validate
+          terraform test # plans against dummy credentials; nothing is created
 
   tflint:
     runs-on: ubuntu-latest
@@ -85,7 +86,8 @@ jobs:
           checkov -d . --framework terraform github_actions --quiet --compact \
             --output cli --output sarif --output-file-path console,results.sarif
       - name: upload SARIF
-        if: always() && hashFiles('results.sarif') != ''
+        # Fork PRs get a read-only token and cannot upload; the CLI output above still gates the job.
+        if: always() && github.event.pull_request.head.repo.fork != true && hashFiles('results.sarif') != ''
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: results.sarif
