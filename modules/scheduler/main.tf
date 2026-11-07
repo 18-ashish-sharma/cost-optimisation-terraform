@@ -7,6 +7,8 @@ locals {
   # e.g. arn:aws:ec2:ap-south-1:123456789012 -- resolved at plan time, never hard-coded.
   ec2_arn_prefix = "arn:${data.aws_partition.current.partition}:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}"
   rds_arn_prefix = "arn:${data.aws_partition.current.partition}:rds:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}"
+  log_group_name = "/aws/lambda/${local.function_name}"
+  log_group_arn  = "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:${local.log_group_name}"
 }
 
 # ---------------------------------------------------------------- Lambda code
@@ -22,7 +24,7 @@ data "archive_file" "lambda" {
 resource "aws_cloudwatch_log_group" "lambda" {
   #checkov:skip=CKV_AWS_158:Logs hold resource IDs only; the default CloudWatch encryption is sufficient. Pass a KMS key if your policy needs one.
   #checkov:skip=CKV_AWS_338:Short retention is deliberate in a cost-optimisation stack; operational logs, not audit logs.
-  name              = "/aws/lambda/${local.function_name}"
+  name              = local.log_group_name
   retention_in_days = var.log_retention_in_days
   tags              = var.tags
 }

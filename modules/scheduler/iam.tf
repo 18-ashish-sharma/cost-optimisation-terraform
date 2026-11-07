@@ -19,7 +19,7 @@ data "aws_iam_policy_document" "lambda" {
   statement {
     sid       = "WriteOwnLogs"
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = ["${aws_cloudwatch_log_group.lambda.arn}:*"]
+    resources = ["${local.log_group_arn}:*"]
   }
 
   # Describe* calls do not support resource-level permissions, so they need "*". They are read-only.
