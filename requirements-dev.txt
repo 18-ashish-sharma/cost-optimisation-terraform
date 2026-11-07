@@ -1,0 +1,5 @@
+# Test/lint tools only. The Lambda itself needs nothing beyond boto3, which the runtime provides.
+boto3==1.40.70
+moto[ec2,rds]==5.1.16
+pytest==8.4.2
+ruff==0.14.4
