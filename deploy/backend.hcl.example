@@ -1,0 +1,9 @@
+# Copy to backend.hcl (git-ignored) and fill in. Then: terraform init -backend-config=backend.hcl
+bucket       = "my-org-terraform-state-123456789012" # versioned, encrypted, public access blocked
+key          = "cost-optimisation/terraform.tfstate"
+region       = "ap-south-1"
+encrypt      = true
+use_lockfile = true # S3-native lock file (Terraform >= 1.10); replaces the DynamoDB lock table
+
+# Older setups lock with DynamoDB instead (deprecated since Terraform 1.11):
+# dynamodb_table = "terraform-locks"
