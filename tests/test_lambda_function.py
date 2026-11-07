@@ -167,7 +167,15 @@ def test_resource_types_limits_what_is_managed(monkeypatch):
 # ------------------------------------------------------------------ Failures
 
 
-@pytest.mark.parametrize("event", [{}, {"action": "reboot"}, {"function_name": "stop_instances"}])
+@pytest.mark.parametrize(
+    "event",
+    [
+        {},
+        {"action": "reboot"},
+        {"function_name": "stop_instances"},
+        {"action": "stop", "dry_run": "false"},
+    ],
+)
 def test_invalid_action_raises(event):
     with pytest.raises(ValueError):
         lf.lambda_handler(event)
@@ -192,3 +200,43 @@ def test_api_failure_is_raised_not_swallowed(monkeypatch):
 
     with pytest.raises(lf.SchedulerError, match="UnauthorizedOperation"):
         lf.lambda_handler({"action": "stop"})
+
+
+def test_one_failing_instance_does_not_block_the_rest_of_the_batch(monkeypatch):
+    ec2 = boto3.client("ec2", region_name=REGION)
+    good = _instance(ec2, SCHEDULED)
+    bad = _instance(ec2, SCHEDULED)
+
+    real_client = boto3.client
+
+    def client(service, *args, **kwargs):
+        c = real_client(service, *args, **kwargs)
+        if service == "ec2":
+            real_stop = c.stop_instances
+
+            def stop(InstanceIds):  # noqa: N803 - boto3 argument name
+                if bad in InstanceIds:
+                    raise RuntimeError("UnsupportedOperation")
+                return real_stop(InstanceIds=InstanceIds)
+
+            monkeypatch.setattr(c, "stop_instances", stop)
+        return c
+
+    monkeypatch.setattr(lf.boto3, "client", client)
+
+    with pytest.raises(lf.SchedulerError, match=bad):
+        lf.lambda_handler({"action": "stop"})
+    assert _state(ec2, good) == "stopped"
+    assert _state(ec2, bad) == "running"
+
+
+def test_rds_read_replica_setup_is_skipped():
+    rds = boto3.client("rds", region_name=REGION)
+    _db(rds, "dev-source", SCHEDULED)
+    rds.create_db_instance_read_replica(
+        DBInstanceIdentifier="dev-replica",
+        SourceDBInstanceIdentifier="dev-source",
+        Tags=SCHEDULED,
+    )
+
+    assert lf.lambda_handler({"action": "stop"})["rds"]["instances"] == []

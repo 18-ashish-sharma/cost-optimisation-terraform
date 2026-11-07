@@ -9,8 +9,9 @@ Behaviour:
   so a repeated run is a no-op (idempotent).
 * EC2 instances owned by an Auto Scaling group are skipped: stopping them would make
   the ASG replace them.
-* Aurora / Multi-AZ DB clusters are started and stopped at cluster level; their member
-  instances are skipped at instance level.
+* DB clusters (Aurora, Multi-AZ DB clusters; the same API also lists Neptune and DocumentDB)
+  are started and stopped at cluster level; their member instances are skipped.
+* RDS read replicas, and sources that have replicas, are skipped: AWS cannot stop them.
 * Every resource is attempted. If any call fails, the function raises at the end so the
   invocation is recorded as an error (CloudWatch ``Errors`` metric -> alarm).
 """
@@ -98,8 +99,15 @@ def apply_ec2(ec2, action: str, ids: list[str]) -> list[str]:
         try:
             call(InstanceIds=list(batch))
             _log(f"ec2 {action} requested", instance_ids=list(batch))
-        except Exception as exc:  # noqa: BLE001 - collected and re-raised as SchedulerError
-            errors.append(f"ec2 {action} {list(batch)}: {exc}")
+        except Exception:  # noqa: BLE001
+            # The API is all-or-nothing per call: one bad instance fails the whole batch.
+            # Retry one by one so only the instance that really cannot change is reported.
+            for instance_id in batch:
+                try:
+                    call(InstanceIds=[instance_id])
+                    _log(f"ec2 {action} requested", instance_ids=[instance_id])
+                except Exception as exc:  # noqa: BLE001 - collected, re-raised as SchedulerError
+                    errors.append(f"ec2 {action} {instance_id}: {exc}")
     return errors
 
 
@@ -116,6 +124,15 @@ def rds_targets(rds, action: str, tag_key: str, tag_value: str) -> dict[str, lis
         for db in page["DBInstances"]:
             if db.get("DBClusterIdentifier"):
                 continue  # cluster member: handled at cluster level
+            if db.get("ReadReplicaSourceDBInstanceIdentifier") or db.get(
+                "ReadReplicaDBInstanceIdentifiers"
+            ):
+                # AWS cannot stop a read replica or a source that has replicas.
+                _log(
+                    "skip: read replica setup cannot be stopped",
+                    db_instance=db["DBInstanceIdentifier"],
+                )
+                continue
             if db["DBInstanceStatus"] == from_status and _has_tag(
                 db.get("TagList", []), tag_key, tag_value
             ):
@@ -162,7 +179,9 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
     action = (event or {}).get("action")
     if action not in VALID_ACTIONS:
         raise ValueError(f"event.action must be one of {VALID_ACTIONS}, got {action!r}")
-    dry_run = bool(event.get("dry_run", False))
+    dry_run = event.get("dry_run", False)
+    if not isinstance(dry_run, bool):
+        raise ValueError(f"event.dry_run must be true or false, got {dry_run!r}")
     cfg = _config()
     summary: dict[str, Any] = {"action": action, "dry_run": dry_run}
     errors: list[str] = []
